@@ -8,20 +8,22 @@ export async function extractJobsFromDOM(page: Page): Promise<ExtractedJob[]> {
     const results: Array<{ title: string; url: string | null }> = [];
     const seen = new Set<string>();
 
-    // Helper to resolve relative URLs
-    function resolveUrl(href: string): string {
-      try {
-        return new URL(href, baseUrl).href;
-      } catch {
-        return href;
-      }
-    }
-
-    // Helper to check if text looks like a job title
-    function isJobTitle(text: string): boolean {
-      const trimmed = text.trim();
-      return trimmed.length >= 3 && trimmed.length <= 200 && !trimmed.includes('\n');
-    }
+    // Use object methods to avoid esbuild __name injection in browser context.
+    // esbuild's --keep-names wraps all named variable assignments (const/let/var)
+    // with __name(), which doesn't exist in the browser. Object methods are safe.
+    const _ = {
+      resolveUrl(href: string): string {
+        try {
+          return new URL(href, baseUrl).href;
+        } catch {
+          return href;
+        }
+      },
+      isJobTitle(text: string): boolean {
+        const trimmed = text.trim();
+        return trimmed.length >= 3 && trimmed.length <= 200 && !trimmed.includes('\n');
+      },
+    };
 
     // Strategy 1: Links with job-related href patterns
     const jobLinkSelectors = [
@@ -43,13 +45,13 @@ export async function extractJobsFromDOM(page: Page): Promise<ExtractedJob[]> {
       links.forEach((link) => {
         const title = link.textContent?.trim() || '';
         const href = link.getAttribute('href');
-        if (!href || !isJobTitle(title)) return;
+        if (!href || !_.isJobTitle(title)) return;
 
         // Skip navigation links, footer links, etc.
         const parent = link.closest('nav, footer, header');
         if (parent) return;
 
-        const url = resolveUrl(href);
+        const url = _.resolveUrl(href);
         const key = `${title}|${url}`;
         if (seen.has(key)) return;
         seen.add(key);
@@ -83,9 +85,9 @@ export async function extractJobsFromDOM(page: Page): Promise<ExtractedJob[]> {
         links.forEach((link) => {
           const title = link.textContent?.trim() || '';
           const href = link.getAttribute('href');
-          if (!isJobTitle(title)) return;
+          if (!_.isJobTitle(title)) return;
 
-          const url = href ? resolveUrl(href) : null;
+          const url = href ? _.resolveUrl(href) : null;
           const key = `${title}|${url}`;
           if (seen.has(key)) return;
           seen.add(key);
@@ -105,12 +107,12 @@ export async function extractJobsFromDOM(page: Page): Promise<ExtractedJob[]> {
       const anchor = link as HTMLAnchorElement;
       const title = anchor.textContent?.trim() || '';
       const href = anchor.getAttribute('href');
-      if (!isJobTitle(title) || !href) return;
+      if (!_.isJobTitle(title) || !href) return;
 
       const parent = anchor.closest('nav, footer, header');
       if (parent) return;
 
-      const url = resolveUrl(href);
+      const url = _.resolveUrl(href);
       const key = `${title}|${url}`;
       if (seen.has(key)) return;
       seen.add(key);

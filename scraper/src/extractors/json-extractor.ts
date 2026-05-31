@@ -65,42 +65,46 @@ export async function extractJobsFromJSON(page: Page): Promise<ExtractedJob[] | 
     const pageProps = props.pageProps as Record<string, unknown> | undefined;
     if (!pageProps) return null;
 
-    // Search recursively for arrays that look like job listings
-    function findJobArrays(obj: unknown, depth: number = 0): Array<{ title: string; url: string | null }> {
-      if (depth > 5 || !obj || typeof obj !== 'object') return [];
-      if (Array.isArray(obj)) {
-        const hasJobs = obj.some(
-          (item) =>
-            item &&
-            typeof item === 'object' &&
-            ('title' in item || 'name' in item || 'jobTitle' in item)
-        );
-        if (hasJobs && obj.length > 0) {
-          return obj
-            .filter((item) => item && typeof item === 'object')
-            .map((item) => {
-              const record = item as Record<string, unknown>;
-              return {
-                title: String(record.title || record.name || record.jobTitle || ''),
-                url: record.url
-                  ? String(record.url)
-                  : record.slug
-                    ? `${window.location.origin}/jobs/${record.slug}`
-                    : null,
-              };
-            })
-            .filter((j) => j.title.length > 0);
+    // Object method to avoid esbuild __name injection in browser context.
+    // esbuild's --keep-names wraps all named variable assignments with __name(),
+    // which doesn't exist in the browser. Object methods are not wrapped.
+    const _ = {
+      findJobArrays(obj: unknown, depth: number = 0): Array<{ title: string; url: string | null }> {
+        if (depth > 5 || !obj || typeof obj !== 'object') return [];
+        if (Array.isArray(obj)) {
+          const hasJobs = obj.some(
+            (item) =>
+              item &&
+              typeof item === 'object' &&
+              ('title' in item || 'name' in item || 'jobTitle' in item)
+          );
+          if (hasJobs && obj.length > 0) {
+            return obj
+              .filter((item) => item && typeof item === 'object')
+              .map((item) => {
+                const record = item as Record<string, unknown>;
+                return {
+                  title: String(record.title || record.name || record.jobTitle || ''),
+                  url: record.url
+                    ? String(record.url)
+                    : record.slug
+                      ? `${window.location.origin}/jobs/${record.slug}`
+                      : null,
+                };
+              })
+              .filter((j) => j.title.length > 0);
+          }
         }
-      }
-      const record = obj as Record<string, unknown>;
-      for (const key of Object.keys(record)) {
-        const result = findJobArrays(record[key], depth + 1);
-        if (result.length > 0) return result;
-      }
-      return [];
-    }
+        const record = obj as Record<string, unknown>;
+        for (const key of Object.keys(record)) {
+          const result = _.findJobArrays(record[key], depth + 1);
+          if (result.length > 0) return result;
+        }
+        return [];
+      },
+    };
 
-    return findJobArrays(pageProps);
+    return _.findJobArrays(pageProps);
   });
 
   if (nextDataJobs && nextDataJobs.length > 0) {

@@ -1,0 +1,1 @@
+export { supabaseServer } from './server';

@@ -1,6 +1,7 @@
 'use client';
 
 import { formatDistanceToNow } from 'date-fns';
+import { Pencil, Trash2, ExternalLink } from 'lucide-react';
 import type { Company } from '@/types';
 
 interface CompanyTableProps {
@@ -18,87 +19,99 @@ export function CompanyTable({
 }: CompanyTableProps) {
   if (companies.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-        <p className="text-gray-500 mb-2">No companies added yet.</p>
-        <p className="text-sm text-gray-400">
-          Add a company career page URL to start monitoring.
+      <div className="bg-white rounded-lg border border-gray-200 p-16 text-center">
+        <div className="flex justify-center mb-4">
+          <div className="text-4xl text-gray-300">📋</div>
+        </div>
+        <p className="text-gray-900 font-medium text-lg mb-2">No companies added yet.</p>
+        <p className="text-gray-600">
+          Add a company career page URL to start monitoring for new job postings.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50">
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
+          <tr className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+            <th className="text-left px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
               Company
             </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
+            <th className="text-left px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
               Career Page URL
             </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
+            <th className="text-left px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
               Last Scraped
             </th>
-            <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">
+            <th className="text-center px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
               Active
             </th>
-            <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">
+            <th className="text-right px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">
               Actions
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody className="divide-y divide-gray-100">
           {companies.map((company) => (
-            <tr key={company.id} className={!company.is_active ? 'opacity-50' : ''}>
-              <td className="px-4 py-3 text-sm font-medium text-gray-900">
+            <tr
+              key={company.id}
+              className={`hover:bg-blue-50 transition-colors ${!company.is_active ? 'opacity-50 bg-gray-50' : ''}`}
+            >
+              <td className="px-6 py-4 text-sm font-semibold text-gray-900">
                 {company.name}
               </td>
-              <td className="px-4 py-3 text-sm">
+              <td className="px-6 py-4 text-sm text-gray-600">
                 <a
                   href={company.career_page_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 truncate block max-w-xs"
+                  className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-2 max-w-xs truncate"
                   title={company.career_page_url}
                 >
-                  {truncateUrl(company.career_page_url)}
+                  <span className="truncate">{truncateUrl(company.career_page_url)}</span>
+                  <ExternalLink className="w-4 h-4 flex-shrink-0" />
                 </a>
               </td>
-              <td className="px-4 py-3 text-sm text-gray-500">
+              <td className="px-6 py-4 text-sm text-gray-600">
                 {company.last_scraped_at
                   ? formatDistanceToNow(new Date(company.last_scraped_at), {
                       addSuffix: true,
                     })
                   : 'Never'}
               </td>
-              <td className="px-4 py-3 text-center">
+              <td className="px-6 py-4 text-center">
                 <button
                   onClick={() => onToggleActive(company)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                    company.is_active ? 'bg-blue-600' : 'bg-gray-300'
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all ${
+                    company.is_active ? 'bg-green-500' : 'bg-gray-300'
                   }`}
+                  aria-label={company.is_active ? 'Disable monitoring' : 'Enable monitoring'}
                 >
                   <span
-                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                      company.is_active ? 'translate-x-4.5' : 'translate-x-1'
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      company.is_active ? 'translate-x-5.5' : 'translate-x-1'
                     }`}
                   />
                 </button>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
                 <button
                   onClick={() => onEdit(company)}
-                  className="text-sm text-gray-600 hover:text-gray-900 mr-3"
+                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Edit company"
+                  aria-label={`Edit ${company.name}`}
                 >
-                  Edit
+                  <Pencil className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => onDelete(company)}
-                  className="text-sm text-red-600 hover:text-red-800"
+                  className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete company"
+                  aria-label={`Delete ${company.name}`}
                 >
-                  Delete
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </td>
             </tr>

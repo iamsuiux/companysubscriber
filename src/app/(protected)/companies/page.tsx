@@ -2,9 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CompanyTable } from '@/components/companies/CompanyTable';
 import { CompanyModal } from '@/components/companies/CompanyModal';
 import { DeleteConfirmDialog } from '@/components/companies/DeleteConfirmDialog';
+import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Company } from '@/types';
 
 export default function CompaniesPage() {
@@ -48,35 +51,107 @@ export default function CompaniesPage() {
 
   const handleToggleActive = async (company: Company) => {
     try {
-      await fetch(`/api/companies/${company.id}`, {
+      const response = await fetch(`/api/companies/${company.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !company.is_active }),
       });
-      fetchCompanies();
+
+      if (response.ok) {
+        toast.success(`Company ${!company.is_active ? 'activated' : 'deactivated'}`, {
+          description: `${company.name} is now ${!company.is_active ? 'active' : 'inactive'}`,
+        });
+        fetchCompanies();
+      } else {
+        toast.error('Failed to update company', {
+          description: 'Could not change active status',
+        });
+      }
     } catch (error) {
       console.error('Failed to toggle active:', error);
+      toast.error('Failed to update company', {
+        description: 'An error occurred while updating the company',
+      });
     }
   };
 
   const handleDelete = async () => {
     if (!deletingCompany) return;
     try {
-      await fetch(`/api/companies/${deletingCompany.id}`, {
+      const response = await fetch(`/api/companies/${deletingCompany.id}`, {
         method: 'DELETE',
       });
-      setDeletingCompany(null);
-      fetchCompanies();
+
+      if (response.ok) {
+        toast.success('Company deleted successfully', {
+          description: `${deletingCompany.name} has been removed`,
+        });
+        setDeletingCompany(null);
+        fetchCompanies();
+      } else {
+        toast.error('Failed to delete company', {
+          description: 'Could not delete the company',
+        });
+      }
     } catch (error) {
       console.error('Failed to delete company:', error);
+      toast.error('Failed to delete company', {
+        description: 'An error occurred while deleting the company',
+      });
     }
   };
 
   if (loading) {
     return (
       <div>
-        <PageHeader title="Companies" description="Manage company career page URLs" />
-        <p className="text-gray-500">Loading...</p>
+        <PageHeader
+          title="Companies"
+          description="Manage company career page URLs"
+          action={<Skeleton className="h-10 w-32" />}
+        />
+
+        {/* Skeleton Table */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+                <th className="text-left px-4 sm:px-6 py-4">
+                  <Skeleton className="h-4 w-24" />
+                </th>
+                <th className="text-left px-4 sm:px-6 py-4">
+                  <Skeleton className="h-4 w-32" />
+                </th>
+                <th className="text-left px-4 sm:px-6 py-4">
+                  <Skeleton className="h-4 w-20" />
+                </th>
+                <th className="text-right px-4 sm:px-6 py-4">
+                  <Skeleton className="h-4 w-24 ml-auto" />
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <tr key={i} className="hover:bg-blue-50">
+                  <td className="px-4 sm:px-6 py-4">
+                    <Skeleton className="h-5 w-32" />
+                  </td>
+                  <td className="px-4 sm:px-6 py-4">
+                    <Skeleton className="h-4 w-48" />
+                  </td>
+                  <td className="px-4 sm:px-6 py-4">
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </td>
+                  <td className="px-4 sm:px-6 py-4">
+                    <div className="flex items-center justify-end gap-2">
+                      <Skeleton className="h-9 w-9 rounded-lg" />
+                      <Skeleton className="h-9 w-9 rounded-lg" />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -89,9 +164,11 @@ export default function CompaniesPage() {
         action={
           <button
             onClick={handleAdd}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all"
           >
-            Add Company
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Add Company</span>
+            <span className="sm:hidden">Add</span>
           </button>
         }
       />

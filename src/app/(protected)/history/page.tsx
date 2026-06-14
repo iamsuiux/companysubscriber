@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import type { JobWithCompany } from '@/types';
 
 const PAGE_SIZE = 50;
@@ -68,11 +71,18 @@ export default function HistoryPage() {
 
       if (res.ok) {
         setIsRunning(true);
+        toast.success('Scrape started successfully', {
+          description: 'The scraper is now running. This may take several minutes...',
+        });
       } else {
-        alert(data.error?.message || 'Failed to trigger scrape');
+        toast.error('Failed to start scrape', {
+          description: data.error?.message || 'An error occurred while starting the scrape',
+        });
       }
     } catch {
-      alert('Failed to trigger scrape');
+      toast.error('Failed to start scrape', {
+        description: 'Could not connect to the scraper service',
+      });
     } finally {
       setTriggering(false);
     }
@@ -89,8 +99,50 @@ export default function HistoryPage() {
   if (loading) {
     return (
       <div>
-        <PageHeader title="History" description="All scraped jobs across all time" />
-        <p className="text-gray-500">Loading...</p>
+        <div className="flex items-center justify-between mb-6">
+          <PageHeader title="History" description="All scraped jobs across all time" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+
+        {/* Skeleton Table */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="text-left px-4 py-3">
+                  <Skeleton className="h-4 w-20" />
+                </th>
+                <th className="text-left px-4 py-3">
+                  <Skeleton className="h-4 w-24" />
+                </th>
+                <th className="text-left px-4 py-3">
+                  <Skeleton className="h-4 w-16" />
+                </th>
+                <th className="text-left px-4 py-3">
+                  <Skeleton className="h-4 w-24" />
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-5 w-48" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-32" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-40" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-24" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }

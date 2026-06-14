@@ -10,6 +10,27 @@ function randomDelay(min: number, max: number): Promise<void> {
 }
 
 export async function scrapeAll(): Promise<void> {
+  // Clean up old "running" records (older than 30 minutes) before checking for active scrapes
+  // This handles cases where the scraper crashed and left stale records
+  try {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { error: cleanupError } = await supabase
+      .from('scrape_logs')
+      .update({
+        status: 'error',
+        completed_at: new Date().toISOString(),
+        error_message: 'Timed out - likely crashed or stalled',
+      })
+      .eq('status', 'running')
+      .lt('started_at', thirtyMinutesAgo);
+
+    if (cleanupError) {
+      logError('Error cleaning up old scrape logs:', cleanupError.message);
+    }
+  } catch (err) {
+    logError('Error during timeout cleanup:', err instanceof Error ? err.message : String(err));
+  }
+
   // Concurrency guard: check if any scrape is currently running
   const { data: runningLogs } = await supabase
     .from('scrape_logs')

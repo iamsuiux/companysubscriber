@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import type { Company } from '@/types';
 
 interface CompanyModalProps {
@@ -42,13 +43,24 @@ export function CompanyModal({ company, onClose, onSaved }: CompanyModalProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error?.message || 'Failed to save');
+        const errorMsg = data.error?.message || 'Failed to save';
+        setError(errorMsg);
+        toast.error(isEdit ? 'Failed to update company' : 'Failed to add company', {
+          description: errorMsg,
+        });
         return;
       }
 
+      toast.success(isEdit ? 'Company updated successfully' : 'Company added successfully', {
+        description: `${name} has been ${isEdit ? 'updated' : 'added'}`,
+      });
       onSaved();
     } catch {
-      setError('An error occurred. Please try again.');
+      const errorMsg = 'An error occurred. Please try again.';
+      setError(errorMsg);
+      toast.error('Failed to save company', {
+        description: errorMsg,
+      });
     } finally {
       setSaving(false);
     }

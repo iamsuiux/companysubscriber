@@ -1,4 +1,4 @@
-import type { Browser } from 'playwright';
+import type { Browser, BrowserContext, Page } from 'playwright';
 import { extractJobs } from './extractors';
 import { detectPagination } from './pagination/detector';
 import { handlePagination } from './pagination/handler';
@@ -17,14 +17,26 @@ export async function scrapeCompany(
   browser: Browser,
   company: { id: string; name: string; career_page_url: string }
 ): Promise<ScrapeResult> {
-  const context = await browser.newContext({
-    userAgent:
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  });
-
-  const page = await context.newPage();
+  let context: BrowserContext | null = null;
+  let page: Page | null = null;
 
   try {
+    // Create context with timeout protection
+    try {
+      context = await browser.newContext({
+        userAgent:
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      });
+    } catch (err) {
+      throw new Error(`Failed to create browser context: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // Create page with timeout protection
+    try {
+      page = await context.newPage();
+    } catch (err) {
+      throw new Error(`Failed to create page: ${err instanceof Error ? err.message : String(err)}`);
+    }
     log(`Scraping: ${company.name} (${company.career_page_url})`);
 
     // Navigate to career page
@@ -126,6 +138,21 @@ export async function scrapeCompany(
       pagesScraped,
     };
   } finally {
-    await context.close();
+    // Ensure context is closed, even if page creation failed
+    if (page) {
+      try {
+        await page.close();
+      } catch (err) {
+        logError(`Failed to close page: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    if (context) {
+      try {
+        await context.close();
+      } catch (err) {
+        logError(`Failed to close context: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
   }
 }

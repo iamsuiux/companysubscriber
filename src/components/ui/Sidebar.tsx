@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, Building2, History, Settings, LogOut } from 'lucide-react';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '□' },
-  { href: '/companies', label: 'Companies', icon: '◇' },
-  { href: '/history', label: 'History', icon: '☰' },
-  { href: '/settings', label: 'Settings', icon: '⚙' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/companies', label: 'Companies', icon: Building2 },
+  { href: '/history', label: 'History', icon: History },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -31,9 +32,10 @@ export function Sidebar({ username }: SidebarProps) {
       </div>
 
       <nav className="flex-1 p-4">
-        <ul className="space-y-1">
+        <ul className="space-y-1 list-none">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
+            const Icon = item.icon;
             return (
               <li key={item.href}>
                 <Link
@@ -44,7 +46,7 @@ export function Sidebar({ username }: SidebarProps) {
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <span className="text-base">{item.icon}</span>
+                  <Icon className="w-5 h-5" />
                   {item.label}
                 </Link>
               </li>
@@ -58,9 +60,10 @@ export function Sidebar({ username }: SidebarProps) {
           <span className="text-sm text-gray-600">{username}</span>
           <button
             onClick={handleLogout}
-            className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+            title="Logout"
           >
-            Logout
+            <LogOut className="w-5 h-5" />
           </button>
         </div>
       </div>

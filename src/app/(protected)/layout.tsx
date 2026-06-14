@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/ui/Sidebar';
+import { MobileMenu } from '@/components/ui/MobileMenu';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Toaster } from '@/components/ui/toaster';
 
 export default function ProtectedLayout({
   children,
@@ -35,9 +37,26 @@ export default function ProtectedLayout({
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar username={username!} />
-      <main className="flex-1 overflow-auto p-6 bg-gray-50">{children}</main>
-    </div>
+    <>
+      <Toaster />
+      <div className="flex h-screen flex-col md:flex-row">
+        {/* Desktop Sidebar - Hidden on Mobile */}
+        <div className="hidden md:block">
+          <Sidebar username={username!} />
+        </div>
+
+        {/* Mobile Menu */}
+        <div className="md:hidden w-full">
+          <MobileMenu username={username!} />
+        </div>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-auto bg-gray-50">
+          <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            {children}
+          </div>
+        </main>
+      </div>
+    </>
   );
 }

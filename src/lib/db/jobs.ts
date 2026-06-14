@@ -9,6 +9,8 @@ export async function getNewJobs(days: number = 7): Promise<JobWithCompany[]> {
     .select('*, company:companies(name)')
     .gte('first_seen_at', since)
     .eq('is_active', true)
+    // Filter for developer-related jobs only
+    .or('title.ilike.%software%,title.ilike.%engineer%,title.ilike.%developer%')
     .order('first_seen_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -22,6 +24,8 @@ export async function getAllJobsPaginated(
   const { data, error, count } = await supabaseServer
     .from('jobs')
     .select('*, company:companies(name)', { count: 'exact' })
+    // Filter for developer-related jobs only
+    .or('title.ilike.%software%,title.ilike.%engineer%,title.ilike.%developer%')
     .order('first_seen_at', { ascending: false })
     .range(offset, offset + limit - 1);
 

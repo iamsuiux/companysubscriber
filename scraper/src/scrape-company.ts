@@ -3,6 +3,7 @@ import { extractJobs } from './extractors';
 import { detectPagination } from './pagination/detector';
 import { handlePagination } from './pagination/handler';
 import { generateDedupHash } from './utils/dedup';
+import { filterJobsByTitle, parseKeywords } from './utils/filter';
 import { supabase } from './utils/db';
 import { config } from './config';
 import { log, logError } from './utils/logger';
@@ -17,6 +18,19 @@ export async function scrapeCompany(
   browser: Browser,
   company: { id: string; name: string; career_page_url: string }
 ): Promise<ScrapeResult> {
+  // Fetch job title keywords from settings
+  const { data: keywordsSetting } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'job_title_keywords')
+    .single();
+
+  const keywords = keywordsSetting
+    ? parseKeywords(keywordsSetting.value)
+    : ['software', 'engineer', 'developer']; // Fallback defaults
+
+  log(`Using keywords filter: ${keywords.join(', ')}`);
+
   let context: BrowserContext | null = null;
   let page: Page | null = null;
 
@@ -52,12 +66,17 @@ export async function scrapeCompany(
     const initialJobs = await extractJobs(page);
     log(`  Initial extraction: ${initialJobs.length} jobs`);
 
+    // Filter jobs by title keywords
+    const filteredInitialJobs = filterJobsByTitle(initialJobs, keywords);
+    log(`  After title filter: ${filteredInitialJobs.length} jobs`);
+
     // Detect and handle pagination
     const pagination = await detectPagination(page);
     const { allJobs, pagesScraped } = await handlePagination(
       page,
       pagination,
-      initialJobs
+      filteredInitialJobs,
+      keywords
     );
 
     log(`  Total after pagination: ${allJobs.length} jobs across ${pagesScraped} pages`);

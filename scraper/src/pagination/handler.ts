@@ -2,6 +2,7 @@ import type { Page } from 'playwright';
 import type { PaginationInfo } from './detector';
 import { extractJobs } from '../extractors';
 import type { ExtractedJob } from '../extractors';
+import { filterJobsByTitle } from '../utils/filter';
 import { config } from '../config';
 import { log } from '../utils/logger';
 
@@ -13,7 +14,8 @@ function randomDelay(min: number, max: number): Promise<void> {
 export async function handlePagination(
   page: Page,
   pagination: PaginationInfo,
-  initialJobs: ExtractedJob[]
+  initialJobs: ExtractedJob[],
+  keywords: string[]
 ): Promise<{ allJobs: ExtractedJob[]; pagesScraped: number }> {
   if (pagination.type === 'none') {
     return { allJobs: initialJobs, pagesScraped: 1 };
@@ -45,9 +47,13 @@ export async function handlePagination(
     await page.waitForTimeout(2000);
 
     const pageJobs = await extractJobs(page);
+
+    // Filter jobs by title keywords
+    const filteredPageJobs = filterJobsByTitle(pageJobs, keywords);
+
     let newCount = 0;
 
-    for (const job of pageJobs) {
+    for (const job of filteredPageJobs) {
       const key = `${job.title}|${job.url}`;
       if (!seenTitles.has(key)) {
         seenTitles.add(key);
@@ -57,7 +63,7 @@ export async function handlePagination(
     }
 
     pagesScraped++;
-    log(`  Page ${pagesScraped}: found ${pageJobs.length} jobs (${newCount} new)`);
+    log(`  Page ${pagesScraped}: found ${filteredPageJobs.length} jobs (${newCount} new)`);
 
     // If no new jobs found, stop paginating
     if (newCount === 0) {

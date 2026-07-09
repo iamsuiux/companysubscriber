@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -15,10 +15,7 @@ interface DashboardData {
     companyCount: number;
     lastScrapeAt: string | null;
   };
-  jobsByCompany: Array<{
-    companyName: string;
-    jobs: JobWithCompany[];
-  }>;
+  jobs: JobWithCompany[];
 }
 
 export default function DashboardPage() {
@@ -208,62 +205,64 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Jobs by Company */}
-      {data.jobsByCompany.length === 0 ? (
+      {/* All new jobs, sorted by date (newest first) */}
+      {data.jobs.length === 0 ? (
         <EmptyState
           icon={Package}
           title="No new jobs found in the last 7 days."
           description="Add companies and run a scrape to discover job postings."
         />
       ) : (
-        <div className="space-y-4">
-          {data.jobsByCompany.map((group) => (
-            <div
-              key={group.companyName}
-              className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
-            >
-              <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <h3 className="font-semibold text-gray-900">{group.companyName}</h3>
-                <span className="inline-block text-xs font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                  {group.jobs.length} {group.jobs.length === 1 ? 'job' : 'jobs'}
-                </span>
-              </div>
-              <ul className="divide-y divide-gray-100 list-none">
-                {group.jobs.map((job) => (
-                  <li
-                    key={job.id}
-                    className="px-4 sm:px-6 py-4 hover:bg-blue-50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      {job.job_url ? (
-                        <>
-                          <a
-                            href={job.job_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-2 group"
-                          >
-                            {job.title}
-                            <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                          </a>
-                          <p className="text-xs text-gray-500 truncate mt-1">{job.job_url}</p>
-                        </>
-                      ) : (
-                        <span className="text-sm font-semibold text-gray-900">
-                          {job.title}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-500 whitespace-nowrap">
-                      {formatDistanceToNow(new Date(job.first_seen_at), {
-                        addSuffix: true,
-                      })}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+          <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <h3 className="font-semibold text-gray-900">New Jobs</h3>
+            <span className="inline-block text-xs font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+              {data.jobs.length} {data.jobs.length === 1 ? 'job' : 'jobs'}
+            </span>
+          </div>
+          <ul className="divide-y divide-gray-100 list-none">
+            {data.jobs.map((job) => (
+              <li
+                key={job.id}
+                className="px-4 sm:px-6 py-4 hover:bg-blue-50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+              >
+                <div className="min-w-0 flex-1">
+                  {job.job_url ? (
+                    <>
+                      <a
+                        href={job.job_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-2 group"
+                      >
+                        {job.title}
+                        <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      </a>
+                      <p className="text-xs text-gray-500 truncate mt-1">{job.job_url}</p>
+                    </>
+                  ) : (
+                    <span className="text-sm font-semibold text-gray-900">
+                      {job.title}
                     </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-700">
+                      <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                      {job.company?.name || 'Unknown'}
+                    </span>
+                    {job.location && (
+                      <span className="inline-block text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                        {job.location}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                  {format(new Date(job.first_seen_at), 'MMM d, yyyy')}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

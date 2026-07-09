@@ -1,4 +1,5 @@
 import express from 'express';
+import cron from 'node-cron';
 import { config } from './config';
 import { scrapeAll } from './scrape-all';
 import { log, logError } from './utils/logger';
@@ -101,10 +102,44 @@ app.post('/api/scrape', authMiddleware, (_req, res) => {
   });
 });
 
+// Schedule the daily auto-scrape. Reuses scrapeAll(), whose own running-check
+// makes this safe to overlap with manual triggers (the second one is skipped).
+// node-cron fires only on schedule (never on startup).
+function scheduleDailyScrape() {
+  if (!config.scrapeCronEnabled) {
+    log('Daily auto-scrape disabled (SCRAPE_CRON_ENABLED=false)');
+    return;
+  }
+
+  if (!cron.validate(config.scrapeCronExpr)) {
+    logError(
+      `Invalid SCRAPE_CRON_EXPR "${config.scrapeCronExpr}" - daily auto-scrape not scheduled`
+    );
+    return;
+  }
+
+  cron.schedule(
+    config.scrapeCronExpr,
+    () => {
+      log(
+        `Scheduled scrape firing (${config.scrapeCronExpr} ${config.scrapeCronTimezone})`
+      );
+      scrapeAll().catch((err) => logError('Scheduled scrape failed:', err));
+    },
+    { timezone: config.scrapeCronTimezone }
+  );
+
+  log(
+    `Daily auto-scrape scheduled: ${config.scrapeCronExpr} (${config.scrapeCronTimezone})`
+  );
+}
+
 const server = app.listen(config.port, async () => {
   log(`Scraper service running on port ${config.port}`);
   // Clean up any stale scrape logs from previous runs
   await cleanupStaleScrapeLogs();
+  // Register the recurring daily scrape
+  scheduleDailyScrape();
 });
 
 // Ensure graceful shutdown when server closes

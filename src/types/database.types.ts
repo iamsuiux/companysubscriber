@@ -22,6 +22,7 @@ export interface Job {
   company_id: string;
   title: string;
   job_url: string | null;
+  location: string | null;
   first_seen_at: string;
   last_seen_at: string;
   is_active: boolean;
@@ -30,6 +31,14 @@ export interface Job {
 
 export interface JobWithCompany extends Job {
   company: Pick<Company, 'name'>;
+}
+
+export interface JobClassification {
+  dedup_hash: string;
+  is_us_remote: boolean;
+  location: string | null;
+  reason: string | null;
+  classified_at: string;
 }
 
 export interface ScrapeLog {

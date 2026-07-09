@@ -19,23 +19,8 @@ export async function GET() {
         .eq('is_active', true),
     ]);
 
-    // Group jobs by company
-    const jobsByCompany: Record<
-      string,
-      { companyName: string; jobs: typeof newJobs }
-    > = {};
-
-    for (const job of newJobs) {
-      const companyId = job.company_id;
-      if (!jobsByCompany[companyId]) {
-        jobsByCompany[companyId] = {
-          companyName: job.company?.name || 'Unknown',
-          jobs: [],
-        };
-      }
-      jobsByCompany[companyId].jobs.push(job);
-    }
-
+    // Return a flat, date-sorted list (newest first). getNewJobs already
+    // orders by first_seen_at descending, so no grouping/re-sort is needed.
     return NextResponse.json({
       data: {
         stats: {
@@ -43,7 +28,7 @@ export async function GET() {
           companyCount: companiesResult.count || 0,
           lastScrapeAt: summary.lastRunAt,
         },
-        jobsByCompany: Object.values(jobsByCompany),
+        jobs: newJobs,
       },
     });
   } catch (error) {

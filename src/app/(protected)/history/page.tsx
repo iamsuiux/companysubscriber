@@ -116,6 +116,9 @@ export default function HistoryPage() {
                   <Skeleton className="h-4 w-24" />
                 </th>
                 <th className="text-left px-4 py-3">
+                  <Skeleton className="h-4 w-20" />
+                </th>
+                <th className="text-left px-4 py-3">
                   <Skeleton className="h-4 w-16" />
                 </th>
                 <th className="text-left px-4 py-3">
@@ -131,6 +134,9 @@ export default function HistoryPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Skeleton className="h-4 w-32" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-24" />
                   </td>
                   <td className="px-4 py-3">
                     <Skeleton className="h-4 w-40" />
@@ -192,6 +198,9 @@ export default function HistoryPage() {
                     Company
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
+                    Location
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
                     URL
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
@@ -218,6 +227,9 @@ export default function HistoryPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {job.company?.name || 'Unknown'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                      {job.location || <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {job.job_url ? (

@@ -4,6 +4,7 @@ import { detectPagination } from './pagination/detector';
 import { handlePagination } from './pagination/handler';
 import { generateDedupHash } from './utils/dedup';
 import { filterJobsByTitle, parseKeywords } from './utils/filter';
+import { classifyTitles, isClassifierEnabled } from './utils/classifier';
 import { supabase } from './utils/db';
 import { config } from './config';
 import { log, logError } from './utils/logger';
@@ -81,12 +82,94 @@ export async function scrapeCompany(
 
     log(`  Total after pagination: ${allJobs.length} jobs across ${pagesScraped} pages`);
 
-    // Generate dedup hashes and upsert jobs
+    // --- Classification stage: keep only US-based remote software-engineer titles ---
+    // Each candidate carries its precomputed dedup hash; accepted jobs also carry a location.
+    type CandidateJob = { title: string; url: string | null; hash: string };
+    const candidates: CandidateJob[] = allJobs.map((job) => ({
+      title: job.title,
+      url: job.url,
+      hash: generateDedupHash(company.id, job.title, job.url),
+    }));
+
+    type AcceptedJob = CandidateJob & { location: string | null };
+    let acceptedJobs: AcceptedJob[];
+
+    if (!isClassifierEnabled()) {
+      // No OpenAI key: fall back to today's behavior (keyword-filtered titles only).
+      acceptedJobs = candidates.map((c) => ({ ...c, location: null }));
+      log('  Classifier disabled (no OPENAI_API_KEY): keeping all keyword-matched jobs');
+    } else {
+      // 1. Look up cached verdicts for these hashes (chunked; Supabase caps .in() lists).
+      const hashes = candidates.map((c) => c.hash);
+      const cached = new Map<string, { is_us_remote: boolean; location: string | null }>();
+
+      for (let i = 0; i < hashes.length; i += 200) {
+        const chunk = hashes.slice(i, i + 200);
+        const { data } = await supabase
+          .from('job_classifications')
+          .select('dedup_hash, is_us_remote, location')
+          .in('dedup_hash', chunk);
+        if (data) {
+          for (const row of data) {
+            cached.set(row.dedup_hash, {
+              is_us_remote: row.is_us_remote,
+              location: row.location,
+            });
+          }
+        }
+      }
+
+      // 2. Classify titles for jobs not in cache.
+      const uncached = candidates.filter((c) => !cached.has(c.hash));
+      const verdictsByTitle = await classifyTitles(uncached.map((c) => c.title));
+
+      // 3. Cache fresh verdicts (one row per dedup_hash). Titles with no verdict
+      //    (e.g. a failed batch) are intentionally left uncached so they retry next scrape.
+      const newRows = uncached
+        .filter((c) => verdictsByTitle.has(c.title))
+        .map((c) => {
+          const v = verdictsByTitle.get(c.title)!;
+          return {
+            dedup_hash: c.hash,
+            is_us_remote: v.isUsRemote,
+            location: v.location,
+            reason: v.reason,
+          };
+        });
+      if (newRows.length > 0) {
+        const { error: cacheErr } = await supabase
+          .from('job_classifications')
+          .upsert(newRows, { onConflict: 'dedup_hash' });
+        if (cacheErr) {
+          logError(`  Failed to cache classifications: ${cacheErr.message}`);
+        }
+      }
+
+      // 4. Build the accepted set from cache hits + fresh verdicts.
+      acceptedJobs = [];
+      for (const c of candidates) {
+        const cachedVerdict = cached.get(c.hash);
+        if (cachedVerdict) {
+          if (cachedVerdict.is_us_remote) {
+            acceptedJobs.push({ ...c, location: cachedVerdict.location });
+          }
+          continue;
+        }
+        const fresh = verdictsByTitle.get(c.title);
+        if (fresh && fresh.isUsRemote) {
+          acceptedJobs.push({ ...c, location: fresh.location });
+        }
+      }
+
+      log(`  Accepted ${acceptedJobs.length} / scanned ${candidates.length} (US-remote SWE)`);
+    }
+
+    // Upsert accepted jobs
     let jobsNew = 0;
     const currentHashes = new Set<string>();
 
-    for (const job of allJobs) {
-      const hash = generateDedupHash(company.id, job.title, job.url);
+    for (const job of acceptedJobs) {
+      const hash = job.hash;
       currentHashes.add(hash);
 
       // Check if job already exists
@@ -100,7 +183,11 @@ export async function scrapeCompany(
         // Update last_seen_at
         await supabase
           .from('jobs')
-          .update({ last_seen_at: new Date().toISOString(), is_active: true })
+          .update({
+            last_seen_at: new Date().toISOString(),
+            is_active: true,
+            location: job.location,
+          })
           .eq('id', existing.id);
       } else {
         // Insert new job
@@ -108,6 +195,7 @@ export async function scrapeCompany(
           company_id: company.id,
           title: job.title,
           job_url: job.url,
+          location: job.location,
           dedup_hash: hash,
           first_seen_at: new Date().toISOString(),
           last_seen_at: new Date().toISOString(),
@@ -149,10 +237,10 @@ export async function scrapeCompany(
       .update({ last_scraped_at: new Date().toISOString() })
       .eq('id', company.id);
 
-    log(`  Done: ${allJobs.length} found, ${jobsNew} new`);
+    log(`  Done: ${acceptedJobs.length} kept (${jobsNew} new) of ${allJobs.length} scanned`);
 
     return {
-      jobsFound: allJobs.length,
+      jobsFound: acceptedJobs.length,
       jobsNew,
       pagesScraped,
     };
